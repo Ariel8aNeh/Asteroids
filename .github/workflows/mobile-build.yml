@@ -1,0 +1,93 @@
+name: Build Mobile Apps
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install Buildozer
+      run: |
+        sudo apt update
+        sudo apt install -y git zip unzip openjdk-8-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+        pip3 install --user --upgrade buildozer cython
+        export PATH=$PATH:~/.local/bin
+    
+    - name: Build Android APK
+      run: |
+        buildozer android debug
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: asteroids-android
+        path: bin/*.apk
+
+  build-ios:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        brew install autoconf automake libtool pkg-config
+        pip3 install kivy-ios
+    
+    - name: Build iOS
+      run: |
+        kivy-ios create Asteroids ./
+        kivy-ios build python3 kivy
+        kivy-ios create Asteroids ./
+    
+    - name: Upload iOS build
+      uses: actions/upload-artifact@v4
+      with:
+        name: asteroids-ios
+        path: Asteroids-ios/
+
+  release:
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download Android APK
+      uses: actions/download-artifact@v4
+      with:
+        name: asteroids-android
+        path: ./android
+    
+    - name: Download iOS build
+      uses: actions/download-artifact@v4
+      with:
+        name: asteroids-ios  
+        path: ./ios
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          ./android/*.apk
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
