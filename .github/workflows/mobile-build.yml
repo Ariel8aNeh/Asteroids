@@ -20,13 +20,23 @@ jobs:
     - name: Install Buildozer
       run: |
         sudo apt update
-        sudo apt install -y git zip unzip openjdk-8-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+        sudo apt install -y git zip unzip openjdk-11-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
+        # Instalar libtinfo5 desde repositorios alternativos
+        wget http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
+        sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb || true
+        sudo apt-get install -f
+        # Instalar buildozer y cython
         pip3 install --user --upgrade buildozer cython
-        export PATH=$PATH:~/.local/bin
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
     
     - name: Build Android APK
       run: |
-        buildozer android debug
+        export PATH=$PATH:$HOME/.local/bin
+        # Configurar ANDROID_HOME si es necesario
+        mkdir -p ~/.android
+        echo "count=0" > ~/.android/repositories.cfg
+        # Ejecutar buildozer
+        buildozer android debug --verbose
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
